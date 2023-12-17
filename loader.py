@@ -23,7 +23,18 @@ def r_home():
 
 @app.route("/config/<key>/<value>")
 def r_config(key, value):
-    config[key] = value
+    # Try to convert value to correct boolean
+    if value == "True":
+        config[key] = True
+    elif value == "False":
+        config[key] = False
+    else:
+        # Try to convert value to int
+        try:
+            i = int(value)
+            config[key] = i
+        except ValueError:
+            config[key] = value
     cprint(f"CONFIG: Set [{key}] to [{value}]")
     return "<p>Updated config<p>"
 
