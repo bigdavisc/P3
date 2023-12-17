@@ -5,15 +5,14 @@ class I9000:
     NEW_LINE = b'\x0d\x0a'
     CUT = b'\x1b\x76'
 
-    __buffer__: bytes = b''
-
     def __init__(self, ip_address: str, port: int):
         self.ip_address = ip_address
         self.port = port
+        self.buffer: bytes = b''
 
     def add_line(self, line: str):
-        self.__buffer__ += str.encode(line)
-        self.__buffer__ += self.NEW_LINE
+        self.buffer += str.encode(line)
+        self.buffer += self.NEW_LINE
 
     def print_buffer(self, cut: bool = True):
         # Create the connection
@@ -24,7 +23,7 @@ class I9000:
         s.sendall(self.CLEAR_BUFFER)
 
         # Send the buffer and some padding on the bottom
-        s.sendall(self.__buffer__)
+        s.sendall(self.buffer)
         s.sendall(self.NEW_LINE * 2)
 
         # Cut if needed
