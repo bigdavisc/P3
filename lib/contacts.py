@@ -12,7 +12,7 @@ class ContactsManager:
         self.__contacts_file__ = "C://ProgramData/P3Data/contacts.txt"
         self.__err_queue__ = []
         self.__err_limit__ = 10
-        self.__err_size__ = 50
+        self.__err_size__ = 200
         self.__delimiter__ = "/"
         self.__directory__ = {}  # nickname/ip/port
         if not os.path.isfile(self.__contacts_file__):
@@ -36,12 +36,12 @@ class ContactsManager:
         f = open(self.__contacts_file__, "r")
         for contact in f.readlines():
             l = contact.split(self.__delimiter__)
-            self.__directory__[l[0]] = {"ip": l[1], "port": l[2]}
+            self.__directory__[l[0]] = {"ip": l[1], "port": l[2], "updated": l[3]}
         f.close()
     def __save_dir__(self):
         d = []
         for key in list(self.__directory__.keys()):
-            d.append(key+self.__delimiter__+self.__directory__[key]["ip"]+self.__delimiter__+self.__directory__[key]["port"]+"\n")
+            d.append(key+self.__delimiter__+self.__directory__[key]["ip"]+self.__delimiter__+self.__directory__[key]["port"]+self.__directory__[key]["updated"]+"\n")
         f = open(self.__contacts_file__, "w")
         f.writelines(d)
         f.close()
@@ -58,16 +58,16 @@ class ContactsManager:
         #If create is True and new_path isn't a valid file,
             #Create directories and file to satisfy
         return True # True indicates a valid file at new_path exists by func end
-    def add_contact(self, nickname, ip, port):
-        try:
-            self.__directory__[nickname]
-        except KeyError:
-            self.__directory__[nickname] = {"ip": ip, "port": port}
-            self.__save_dir__()
-            return True
-        self.__push_err__("[ADD CONTACT] Contact already exists")
-        return False
-    def update_contact(self, nickname, ip, port):
+    def update_contact(self, nickname, ip, port, add=True):
+        import datetime
+        if not add:
+            try:
+                self.__directory__[nickname]
+            except KeyError:
+                self.__push_err__(f"[ADD CONTACT] Contact '{nickname}' doesn't exist, and 'add' was set to False")
+                return False
+        self.__directory__[nickname] = {"ip": ip, "port": port, "updated": str(datetime.datetime.now())}
+        self.__save_dir__()
         return True
     def remove_contact(self, nickname):
         return True
