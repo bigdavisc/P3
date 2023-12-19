@@ -15,10 +15,10 @@ class ContactsManager:
         self.__err_size__ = 200
         self.__delimiter__ = "/"
         self.__directory__ = {}  # Entries look like nickname/ip/port
+        self.__context_key__ = "[DATA]"
         if not os.path.isfile(self.__contacts_file__):
             self.__create_file__()
-        else:
-            self.__load_dir__()
+        self.__load_dir__()
     def __create_file__(self, path=""):
         import os
         import re
@@ -35,15 +35,21 @@ class ContactsManager:
         except FileExistsError:
             self.__push_err__("[CREATE FILE] File already exists; cannot create")
     def __load_dir__(self):
+        import datetime
         self.__directory__.clear()
+        self.__directory__[self.__context_key__] = {"LOADED": str(datetime.datetime.now()), "FILE": self.__contacts_file__}
         f = open(self.__contacts_file__, "r")
         for contact in f.readlines():
+            if contact.startswith(self.__context_key__):
+                continue
             l = contact.split(self.__delimiter__)
             self.__directory__[l[0]] = {"ip": l[1], "port": l[2], "updated": l[3].replace("\n","")}
         f.close()
     def __save_dir__(self):
-        d = []
+        d = [self.__context_key__+": Last load["+self.__directory__[self.__context_key__]["LOADED"]+"] File loaded["+self.__directory__[self.__context_key__]["FILE"]+"]\n"]
         for key in list(self.__directory__.keys()):
+            if key == self.__context_key__:
+                continue
             d.append(key+self.__delimiter__+self.__directory__[key]["ip"]+self.__delimiter__+self.__directory__[key]["port"]+self.__delimiter__+self.__directory__[key]["updated"]+"\n")
         f = open(self.__contacts_file__, "w")
         f.writelines(d)
@@ -73,6 +79,9 @@ class ContactsManager:
             return False
     def update_contact(self, nickname, ip, port, add=True):
         import datetime
+        if nickname == self.__context_key__:
+            self.__push_err__(f"[ADD CONTACT] Nickname '{self.__context_key__}' not allowed")
+            return False
         if not add:
             try:
                 self.__directory__[nickname]
@@ -93,7 +102,15 @@ class ContactsManager:
     ''' Status funcs '''
     # These will only be used to return data and not process anything.
     def list_contacts(self):
-        return self.__directory__
+        import copy
+        a = copy.deepcopy(self.__directory__)
+        del(a[self.__context_key__])
+        return a
+    def get_contact(self, nickname):
+        try:
+            return self.__directory__[nickname]
+        except KeyError:
+            return {}
     def get_file_path(self):
         return self.__contacts_file__
     def pop_err(self):
