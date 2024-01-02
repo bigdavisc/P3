@@ -23,6 +23,8 @@ def r_home():
 
 @app.route("/config/<key>/<value>")
 def r_config(key, value):
+    if key not in list(config.keys()):
+        return f"<p>Invalid config option '{key}'</p><br>" + r_home()
     # Try to convert value to correct boolean
     if value == "True":
         config[key] = True
@@ -36,7 +38,7 @@ def r_config(key, value):
         except ValueError:
             config[key] = value
     cprint(f"CONFIG: Set [{key}] to [{value}]")
-    return "<p>Updated config<p>"
+    return "<p>Updated config<p><br>" + r_home()
 
 @app.route("/m/<msg>")
 def message(msg):
