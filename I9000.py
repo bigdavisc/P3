@@ -1,4 +1,6 @@
 import socket
+from time import sleep
+
 
 class I9000:
     # Printer Control Commands
@@ -30,6 +32,8 @@ class I9000:
 
         self.buffer += self.NEW_LINE
 
+        return self
+
     def add_header(self, t_type: str = "TRANSMISSION", t_from: str = None, t_to: str = None, t_datetime: str = None):
         available_width = self.LINE_WIDTH - 2
         start_padding = (available_width - len(t_type)) // 2
@@ -58,6 +62,8 @@ class I9000:
 
         self.buffer += bottom + self.NEW_LINE
 
+        return self
+
     def print_buffer(self, cut: bool = True):
         # Create the connection
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -73,6 +79,8 @@ class I9000:
         # Cut if needed
         if cut:
             s.sendall(self.CUT)
+
+        sleep(1)
 
         # Close the connection
         s.close()
