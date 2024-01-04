@@ -1,22 +1,25 @@
-class ContactsManager:
+class DataManager:
     '''
-    ContactsManager
+    DataManager
 
-    This class is used to manage the file that retains contact information
+    This class is the baseline data retention class via file management
     '''
 
     ''' Internal '''
     # These are core mechanics of this library for downstream use.
-    def __init__(self):
+    def __init__(self, filepath, fields):
         import os
-        self.__contacts_file__ = "C://ProgramData/P3Data/contacts.txt"
+        import copy
+        self.__data_file__ = filepath
+        self.__data_fields__ = copy.deepcopy(fields) # First field is always the key
+        self.__data_fields__.append("updated")
         self.__err_queue__ = []
         self.__err_limit__ = 10
         self.__err_size__ = 200
         self.__delimiter__ = "/"
         self.__directory__ = {}  # Entries look like nickname/ip/port
         self.__context_key__ = "[DATA]"
-        if not os.path.isfile(self.__contacts_file__):
+        if not os.path.isfile(self.__data_file__):
             self.__create_file__()
         self.__load_dir__()
     def __create_file__(self, path=""):
@@ -24,7 +27,7 @@ class ContactsManager:
         import re
         DIR_PAT = "^(.*)(?:\/(.*).txt)$"
         if not path:
-            path = self.__contacts_file__
+            path = self.__data_file__
         re_match = re.match(DIR_PAT, path)
         try:
             os.makedirs(re_match.group(1))
@@ -36,22 +39,28 @@ class ContactsManager:
             self.__push_err__("[CREATE FILE] File already exists; cannot create")
     def __load_dir__(self):
         import datetime
+        import copy
         self.__directory__.clear()
-        self.__directory__[self.__context_key__] = {"LOADED": str(datetime.datetime.now()), "FILE": self.__contacts_file__}
-        f = open(self.__contacts_file__, "r")
+        self.__directory__[self.__context_key__] = {"LOADED": str(datetime.datetime.now()), "FILE": self.__data_file__}
+        f = open(self.__data_file__, "r")
         for contact in f.readlines():
             if contact.startswith(self.__context_key__):
                 continue
             l = contact.split(self.__delimiter__)
-            self.__directory__[l[0]] = {"ip": l[1], "port": l[2], "updated": l[3].replace("\n","")}
+            row = {}
+            for i in range(1, len(self.__data_fields__)):
+                row[self.__data_fields__[i]] = l[i]
+            row["updated"] = row["updated"].replace("\n","")
+            self.__directory__[l[0]] = copy.deepcopy(row)
         f.close()
     def __save_dir__(self):
         d = [self.__context_key__+": Last load["+self.__directory__[self.__context_key__]["LOADED"]+"] File loaded["+self.__directory__[self.__context_key__]["FILE"]+"]\n"]
         for key in list(self.__directory__.keys()):
             if key == self.__context_key__:
                 continue
+            #TODO generalize this to data fields like in __load_dir__
             d.append(key+self.__delimiter__+self.__directory__[key]["ip"]+self.__delimiter__+self.__directory__[key]["port"]+self.__delimiter__+self.__directory__[key]["updated"]+"\n")
-        f = open(self.__contacts_file__, "w")
+        f = open(self.__data_file__, "w")
         f.writelines(d)
         f.close()
     def __push_err__(self, msg):
@@ -66,17 +75,48 @@ class ContactsManager:
         import os
         if os.path.isfile(new_path):
             # TODO add some validation here; create a .p3c extension. Encryption?
-            self.__contacts_file__ = new_path
+            self.__data_file__ = new_path
             self.__load_dir__()
             return True
         elif create:
             self.__create_file__(new_path)
-            self.__contacts_file__ = new_path
+            self.__data_file__ = new_path
             self.__load_dir__()
             return True
         else:
             self.__push_err__(f"[CHANGE FILE PATH] File '{new_path}' doesn't exist, and 'create' was set to False")
             return False
+    def refresh(self):
+        self.__load_dir__()
+
+    ''' Status funcs '''
+    # These will only be used to return data and not process anything.
+    def list_data(self):
+        import copy
+        a = copy.deepcopy(self.__directory__)
+        del(a[self.__context_key__])
+        return a
+    def get_data(self, key):
+        try:
+            return self.__directory__[key]
+        except KeyError:
+            return {}
+    def get_file_path(self):
+        return self.__data_file__
+    def pop_err(self):
+        try:
+            return self.__err_queue__.pop(0)
+        except IndexError:
+            return ""
+
+class ContactsManager(DataManager):
+    '''
+    ContactsManager
+
+    This class is used to manage the file that retains contact information
+    '''
+    def __init__(self):
+        DataManager.__init__(self, "C://ProgramData/P3Data/contacts.txt", ["nickname", "ip", "port"])
     def update_contact(self, nickname, ip, port, add=True):
         import datetime
         if nickname == self.__context_key__:
@@ -91,7 +131,7 @@ class ContactsManager:
             except KeyError:
                 self.__push_err__(f"[ADD CONTACT] Contact '{nickname}' doesn't exist, and 'add' was set to False")
                 return False
-        self.__directory__[nickname] = {"ip": ip, "port": port, "updated": str(datetime.datetime.now())}
+        self.__directory__[nickname] = {"ip": str(ip), "port": str(port), "updated": str(datetime.datetime.now())}
         self.__save_dir__()
         return True
     def remove_contact(self, nickname):
@@ -101,23 +141,7 @@ class ContactsManager:
         except KeyError:
             self.__push_err__(f"[REMOVE CONTACT] Contact '{nickname}' doesn't exist; cannot delete")
             return False
-
-    ''' Status funcs '''
-    # These will only be used to return data and not process anything.
     def list_contacts(self):
-        import copy
-        a = copy.deepcopy(self.__directory__)
-        del(a[self.__context_key__])
-        return a
+        return self.list_data()
     def get_contact(self, nickname):
-        try:
-            return self.__directory__[nickname]
-        except KeyError:
-            return {}
-    def get_file_path(self):
-        return self.__contacts_file__
-    def pop_err(self):
-        try:
-            return self.__err_queue__.pop(0)
-        except IndexError:
-            return ""
+        return self.get_data(nickname)
