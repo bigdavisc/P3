@@ -82,6 +82,9 @@ class ContactsManager:
         if nickname == self.__context_key__:
             self.__push_err__(f"[ADD CONTACT] Nickname '{self.__context_key__}' not allowed")
             return False
+        if self.__delimiter__ in nickname:
+            self.__push_err__(f"[ADD CONTACT] Character '{self.__delimiter}' not allowed")
+        # TODO add validation to confirm ip and port structures
         if not add:
             try:
                 self.__directory__[nickname]
