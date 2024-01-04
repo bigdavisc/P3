@@ -58,8 +58,11 @@ class DataManager:
         for key in list(self.__directory__.keys()):
             if key == self.__context_key__:
                 continue
-            #TODO generalize this to data fields like in __load_dir__
-            d.append(key+self.__delimiter__+self.__directory__[key]["ip"]+self.__delimiter__+self.__directory__[key]["port"]+self.__delimiter__+self.__directory__[key]["updated"]+"\n")
+            line = key
+            for i in range(1, len(self.__data_fields__)):
+                line += self.__delimiter__ + self.__directory__[key][self.__data_fields__[i]]
+            line += "\n"
+            d.append(line)
         f = open(self.__data_file__, "w")
         f.writelines(d)
         f.close()
