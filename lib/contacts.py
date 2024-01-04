@@ -10,15 +10,22 @@ class DataManager:
     def __init__(self, filepath, fields):
         import os
         import copy
+        # Where the data is stored
         self.__data_file__ = filepath
+        # What fields the data is organized in
         self.__data_fields__ = copy.deepcopy(fields) # First field is always the key
         self.__data_fields__.append("updated")
+        # What errors have occurred; how many to save; how long the text can be
         self.__err_queue__ = []
         self.__err_limit__ = 10
         self.__err_size__ = 200
+        # What delimits the data
         self.__delimiter__ = "/"
-        self.__directory__ = {}  # Entries look like nickname/ip/port
+        # The memory object that stores data for access
+        self.__directory__ = {}
+        # The key for the header row; contains audit info
         self.__context_key__ = "[DATA]"
+        # Create the file if it doesn't exist, then load the file
         if not os.path.isfile(self.__data_file__):
             self.__create_file__()
         self.__load_dir__()
@@ -26,9 +33,11 @@ class DataManager:
         import os
         import re
         DIR_PAT = "^(.*)(?:\/(.*).txt)$"
+        # If no path is specified, use the default
         if not path:
             path = self.__data_file__
         re_match = re.match(DIR_PAT, path)
+        # Create folders, file as necessary
         try:
             os.makedirs(re_match.group(1))
         except FileExistsError:
@@ -40,21 +49,26 @@ class DataManager:
     def __load_dir__(self):
         import datetime
         import copy
+        # Empty memory, set up audit context
         self.__directory__.clear()
         self.__directory__[self.__context_key__] = {"LOADED": str(datetime.datetime.now()), "FILE": self.__data_file__}
         f = open(self.__data_file__, "r")
+        # Begin reading file
         for contact in f.readlines():
             if contact.startswith(self.__context_key__):
                 continue
             l = contact.split(self.__delimiter__)
             row = {}
+            # Load each data field into an object indexed by the first data piece; the key
             for i in range(1, len(self.__data_fields__)):
                 row[self.__data_fields__[i]] = l[i]
             row["updated"] = row["updated"].replace("\n","")
             self.__directory__[l[0]] = copy.deepcopy(row)
         f.close()
     def __save_dir__(self):
+        # Write the audit line
         d = [self.__context_key__+": Last load["+self.__directory__[self.__context_key__]["LOADED"]+"] File loaded["+self.__directory__[self.__context_key__]["FILE"]+"]\n"]
+        # Begin writing data key by key
         for key in list(self.__directory__.keys()):
             if key == self.__context_key__:
                 continue
@@ -67,6 +81,7 @@ class DataManager:
         f.writelines(d)
         f.close()
     def __push_err__(self, msg):
+        # Add message to error queue; push the oldest if queue full
         self.__err_queue__.append(msg[:self.__err_size__])
         if len(self.__err_queue__) > self.__err_limit__:
             self.__err_queue__.pop(0)
@@ -120,8 +135,9 @@ class ContactsManager(DataManager):
     '''
     def __init__(self):
         DataManager.__init__(self, "C://ProgramData/P3Data/contacts.txt", ["nickname", "ip", "port"])
-    def update_contact(self, nickname, ip, port, add=True):
+    def update_contact(self, nickname, ip, port):
         import datetime
+        # Validations
         if nickname == self.__context_key__:
             self.__push_err__(f"[ADD CONTACT] Nickname '{self.__context_key__}' not allowed")
             return False
@@ -129,18 +145,15 @@ class ContactsManager(DataManager):
             self.__push_err__(f"[ADD CONTACT] Character '{self.__delimiter}' not allowed")
             return False
         # TODO add validation to confirm ip and port structures
-        if not add:
-            try:
-                self.__directory__[nickname]
-            except KeyError:
-                self.__push_err__(f"[ADD CONTACT] Contact '{nickname}' doesn't exist, and 'add' was set to False")
-                return False
+        # Load new contact into memory, save to file
         self.__directory__[nickname] = {"ip": str(ip), "port": str(port), "updated": str(datetime.datetime.now())}
         self.__save_dir__()
         return True
     def remove_contact(self, nickname):
         try:
+            # Delete contact from memory, save to file
             del(self.__directory__[nickname])
+            self.__save_dir__()
             return True
         except KeyError:
             self.__push_err__(f"[REMOVE CONTACT] Contact '{nickname}' doesn't exist; cannot delete")
@@ -161,6 +174,7 @@ class GroupsManager(DataManager):
         self.__group_delimiter__ = ":"
     def update_group(self, groupname, nicknames):
         import datetime
+        # Validations
         if groupname == self.__context_key__:
             self.__push_err__(f"[ADD GROUP] Nickname '{self.__context_key__}' not allowed")
             return False
@@ -171,9 +185,19 @@ class GroupsManager(DataManager):
             self.__push_err__(f"[ADD GROUP] Character '{self.__delimiter__}' not allowed")
             return False
         # TODO validate nicknames structure
+        # Load group to memory, save to file
         self.__directory__[groupname] = {"nicknames": nicknames, "updated": str(datetime.datetime.now())}
         self.__save_dir__()
         return True
+    def remove_group(self, groupname):
+        try:
+            # Delete group from memory, save to file
+            del(self.__directory__[groupname])
+            self.__save_dir__()
+            return True
+        except KeyError:
+            self.__push_err(f"[REMOVE GROUP] Group '{groupname}' doesn't exist; cannot delete")
+            return False
     def get_group_members(self, groupname):
         try:
             return self.__directory__[groupname]["nicknames"].split(self.__group_delimiter__)
