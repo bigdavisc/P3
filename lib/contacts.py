@@ -127,6 +127,7 @@ class ContactsManager(DataManager):
             return False
         if self.__delimiter__ in nickname:
             self.__push_err__(f"[ADD CONTACT] Character '{self.__delimiter}' not allowed")
+            return False
         # TODO add validation to confirm ip and port structures
         if not add:
             try:
@@ -148,3 +149,33 @@ class ContactsManager(DataManager):
         return self.list_data()
     def get_contact(self, nickname):
         return self.get_data(nickname)
+
+class GroupsManager(DataManager):
+    '''
+    GroupsManager
+
+    This class is used to manage collections of contacts
+    '''
+    def __init__(self):
+        DataManager.__init__(self, "C://ProgramData/P3Data/groups.txt", ["groupname", "nicknames"])
+        self.__group_delimiter__ = ":"
+    def update_group(self, groupname, nicknames):
+        import datetime
+        if groupname == self.__context_key__:
+            self.__push_err__(f"[ADD GROUP] Nickname '{self.__context_key__}' not allowed")
+            return False
+        if self.__delimiter__ in groupname:
+            self.__push_err__(f"[ADD GROUP] Character '{self.__delimiter__}' not allowed")
+            return False
+        if self.__delimiter__ in nicknames:
+            self.__push_err__(f"[ADD GROUP] Character '{self.__delimiter__}' not allowed")
+            return False
+        # TODO validate nicknames structure
+        self.__directory__[groupname] = {"nicknames": nicknames, "updated": str(datetime.datetime.now())}
+        self.__save_dir__()
+        return True
+    def get_group_members(self, groupname):
+        try:
+            return self.__directory__[groupname]["nicknames"].split(self.__group_delimiter__)
+        except KeyError:
+            return []
